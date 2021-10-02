@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="ext.min.js"></script>
+    <script src="int.min.js"></script>
+    <link href="all.min.css" rel="stylesheet" type="text/css"/>
+</head>
+<body onload="draw();" style="background-color: #fff;">
+<div id="controls" style="padding: 20px;"></div>
+<canvas id="canvas" width="900" height="1000"></canvas>
+<script type="application/javascript">
+    user.def = {currencyId: 1};
+
+    let controlsContainer = $('#controls'),
+        draw,
+        controlProperty = (value, step = 1) => {
+            return {
+                value: value,
+                showCurrency: false, showCalc: false, width: 35,
+                scrolling: {
+                    step: step, min: 1, max: 10000, onChange: () => { draw(); }
+                }
+            };
+        },
+        letterWidthField,
+        letterLineWidthKField;
+
+
+    // console.log(
+    //     Object.assign(controlDefProperty, {value: 4, scrolling: {step: .1}})
+    // );
+
+    controlsContainer.a(
+        letterWidthField = field.amount('letter-width', controlProperty(170)),
+        letterLineWidthKField = field.amount('line-letter-width', controlProperty(2.2, .05)),
+        // field.button('draw-on', {html: 'draw', click: () => {draw();}})
+    );
+
+
+    let canvas = document.getElementById("canvas"),
+        ctx = canvas.getContext("2d");
+
+    const defPixelSize = 20,
+        defDrawStep = 4;
+
+    const pixel = (x, y, size = defPixelSize) => {
+        ctx.fillRect(x - size / 2, y - size / 2, size, size);
+    };
+
+    const fillRect = (x, y, width, height, color = 'black') => {
+        let curColor = ctx.fillStyle;
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, width, height);
+        ctx.fillStyle = curColor;
+    };
+
+    const pixel1px = (x, y) => {
+        pixel(x, y, 1);
+    };
+
+    const minmax = (a, b) => {
+        return {
+            min: Math.min(a, b),
+            max: Math.max(a, b)
+        };
+    };
+
+    const line = (x0, y0, x1, y1, step = defDrawStep, draw = pixel) => {
+        const a = y0 - y1,
+            b = x1 - x0,
+            c = x0 * y1 - x1 * y0,
+            Xminmax = minmax(x0, x1),
+            Yminmax = minmax(y0, y1),
+            isByX = Xminmax.min !== Xminmax.max,
+            Iminmax = isByX ? Xminmax : Yminmax;
+
+        for (let i = Iminmax.min; i <= Iminmax.max; i += step) {
+            draw(isByX ? i : (-b * i - c) / a, isByX ? (-c - a * i) / b : i);
+        }
+    };
+
+    const line1px = (x0, y0, x1, y1) => {
+        line(x0, y0, x1, y1, 1 / 5, pixel1px);
+    };
+
+    const letterLine = (x0, y0, x1, y1, size = 1) => {
+        line(x0, y0, x1, y1, 1 / 5, (x, y) => {
+            pixel(x, y, size);
+        });
+    };
+
+    const arc = (x0, y0, r, startA, stopA, xRatio = 1, step = defDrawStep, draw = pixel) => {
+        let a, b, x, y, iRad;
+
+        for (let i = startA; i <= stopA; i += step) {
+            iRad = i * Math.PI / 180;
+            a = Math.cos(iRad) * r;
+            b = Math.sin(iRad) * r * xRatio;
+            x = x0 + b;
+            y = y0 + a;
+            draw(x, y);
+        }
+    };
+
+    const circle = (x, y, r, step = defDrawStep, draw = pixel1px) => {
+        arc(x, y, r, 0, 360, 1, step, draw);
+    };
+
+    const fillCircle = (x, y, r) => {
+        //circle(x, y, r);
+
+        let _circle = new Path2D();
+        _circle.arc(x, y, r, 0, 2 * Math.PI, false);
+        ctx.fillStyle = 'black';
+        ctx.fill(_circle);
+    };
+
+    draw = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // console.log(lineWidthField, lineWidthField.input().val());
+
+        const
+            c = {
+                x: canvas.width / 2,
+                y: canvas.height / 2 - 10
+            },
+            letterWidth = parseInt(letterWidthField.input().val()),
+            // letterWidth = 170,
+            halfLetterWidth = letterWidth / 2,
+            // pointRadius = halfDottedWidth / 5,
+            pointRadius = 0,
+            // lineW = letterWidth / 17,
+            lineW = letterWidth / parseFloat(letterLineWidthKField.input().val()),
+            diagLetterLineWidth = lineW / Math.sqrt(2),
+            strokePoint0 = {
+                x: c.x - letterWidth * 1 / 4,
+                y: c.y - letterWidth * 1.5
+            },
+            strokePoint1 = {
+                x: c.x - letterWidth * 3 / 4,
+                y: c.y + letterWidth * 1.5
+            };
+
+
+        // bold part line
+        // letterLine(c.x - halfLetterWidth / 2, c.y - letterWidth, c.x - halfLetterWidth / 2, c.y + letterWidth, lineW);
+        // fillRect(c.x - halfLetterWidth / 2 + lineW / 2, c.y - letterWidth + lineW / 2, halfLetterWidth / 2 - lineW, letterWidth * 2 - lineW, '#777');
+
+        // E
+        // fillCircle(c.x, c.y, pointRadius);
+        fillCircle(c.x - letterWidth, c.y, pointRadius);
+        letterLine(c.x - halfLetterWidth / 2, c.y, c.x - letterWidth, c.y, lineW);
+
+        fillCircle(c.x, c.y - letterWidth, pointRadius);
+        letterLine(c.x, c.y - letterWidth, c.x, c.y + letterWidth, lineW);
+        letterLine(c.x, c.y + letterWidth, c.x - letterWidth, c.y + letterWidth, lineW);
+        letterLine(c.x, c.y - letterWidth, c.x - letterWidth, c.y - letterWidth, lineW);
+
+        fillCircle(c.x - letterWidth, c.y - letterWidth, pointRadius);
+        fillCircle(c.x, c.y + letterWidth, pointRadius);
+        fillCircle(c.x - letterWidth, c.y + letterWidth, pointRadius);
+
+        // R
+        fillCircle(c.x - letterWidth, c.y - letterWidth / 2, pointRadius);
+        letterLine(c.x - letterWidth, c.y - letterWidth / 2, c.x - letterWidth / 2, c.y - letterWidth, diagLetterLineWidth);
+        letterLine(c.x - letterWidth, c.y - letterWidth / 2, c.x - letterWidth / 2, c.y, diagLetterLineWidth);
+        letterLine(c.x - letterWidth / 2, c.y, c.x - letterWidth, c.y + letterWidth, diagLetterLineWidth);
+
+        // stroke
+        fillCircle(strokePoint0.x, strokePoint0.y, pointRadius);
+        fillCircle(strokePoint1.x, strokePoint1.y, pointRadius);
+        // line1px(strokePoint0.x, strokePoint0.y, strokePoint1.x, strokePoint1.y);
+        // line1px(c.x - letterWidth / 2, c.y - letterWidth - halfLetterWidth / 2, c.x - letterWidth / 2, strokePoint1.y - halfLetterWidth / 2);
+
+        // alternative stroke
+        letterLine(c.x - letterWidth / 2, c.y - letterWidth, c.x - letterWidth /2, c.y - letterWidth - letterWidth / 4 , lineW);
+        letterLine(c.x - letterWidth / 2, c.y + letterWidth, c.x - letterWidth /2, c.y + letterWidth + letterWidth / 4 , lineW);
+
+    };
+</script>
+
+</body>
+</html>
